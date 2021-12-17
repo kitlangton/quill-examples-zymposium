@@ -15,7 +15,7 @@ case class VampireResearch(suspiciousAge: Int)
 
 @accessible
 trait DataService {
-  def getVampiresWithAddresses: IO[SQLException, List[(Person, Address, Address)]]
+  def getVampiresWithAddresses: IO[SQLException, List[(Person, Address)]]
 
   def getVampires: IO[SQLException, List[Person]]
 }
@@ -30,13 +30,12 @@ final case class DataServiceLive(
 ) extends DataService {
   val env = Has(dataSource)
 
-  def getVampiresWithAddresses: IO[SQLException, List[(Person, Address, Address)]] =
+  def getVampiresWithAddresses: IO[SQLException, List[(Person, Address)]] =
     run {
       for {
         vampire  <- Queries.personsOlderThan(lift(vampireResearch.suspiciousAge))
         address  <- query[Address].join(address => address.ownerFk == vampire.id)
-        address2 <- query[Address].join(address => address.ownerFk == vampire.id)
-      } yield (vampire, address, address2)
+      } yield (vampire, address)
     }.provide(env)
 
   def getVampires: IO[SQLException, List[Person]] =
@@ -51,7 +50,7 @@ object Main extends App {
       .inject(
         dataSourceLayer,
         DataService.live,
-        ZLayer.succeed(VampireResearch(40))
+        ZLayer.succeed(VampireResearch(200))
       )
       .debug("Results")
       .exitCode
